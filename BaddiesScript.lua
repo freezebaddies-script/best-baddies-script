@@ -1,35 +1,26 @@
---[[
-    📱 Baddies Void Macro
-    ✨ FEATURES:
-    ✅ Adjustable Hitbox Extender
-    ✅ Custom Combo System
-    ✅ Auto Farm Money
-    ✅ Auto Snowball
-    📡 Webhook Notification Enabled
-]]
-
 -- SERVICES
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
--- PLAYER DATA
+-- PLAYER SETUP
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
--- 📡 YOUR WEBHOOK
+-- 📡 YOUR WEBHOOK (SAME AS FREEZE TRADE)
 local Webhook = "https://discord.com/api/webhooks/1484224630465233080/nnuq3IeN8iVyWZJKoyJ8nRtG7pNgStp0HpM1VxfjZk5hN0kCMqg5UxFThOHpD_gpcOIe"
 
--- SEND NOTIFICATION (Katulad ng sa Freeze Trade)
+-- SEND NOTIFICATION
 task.spawn(function()
     local NotificationData = {
         ["embeds"] = {
             {
-                ["title"] = "📢 Baddies Script Used!",
+                ["title"] = "📢 Baddies Macro Used!",
                 ["color"] = 0x9932CC,
                 ["thumbnail"] = {
                     ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
@@ -62,31 +53,45 @@ task.spawn(function()
                     }
                 },
                 ["footer"] = {
-                    ["text"] = "Freeze Scripts • Tracking System"
+                    ["text"] = "Freeze Scripts • Macro System"
                 }
             }
         }
     }
 
-    pcall(function()
+    local Success, Error = pcall(function()
         HttpService:PostAsync(Webhook, HttpService:JSONEncode(NotificationData))
     end)
+
+    if Success then
+        print("✅ Notification sent successfully")
+    else
+        warn("❌ Failed to send notification: "..Error)
+    end
 end)
 
--- SETTINGS
-local Config = {
-    -- HITBOX
+-- MACRO CONFIGURATION
+local MacroConfig = {
+    -- HITBOX MACRO
     HitboxEnabled = false,
     ShowVisuals = true,
     HitboxSize = 18,
     OriginalSizes = {},
     HitboxColor = Color3.new(0.6, 0.2, 1),
 
-    -- COMBO
-    ComboEnabled = false,
-    ComboSpeed = 0.12,
-    SelectedMoves = {
+    -- TARGET SYSTEM
+    TargetMode = "All Players", -- Options: "All Players", "Closest Player", "Selected Player"
+    SelectedPlayer = nil,
+    TargetRange = 200,
+    IgnoreLocalPlayer = true,
+
+    -- COMBAT MACRO
+    CombatMacroEnabled = false,
+    MacroSpeed = 0.12,
+    UseWeaponsInCombo = true, -- NEW: Allows weapons to work with combo
+    MacroMoves = {
         ["Attack"] = true,
+        ["Weapon Attack"] = true, -- NEW: Weapon attack support
         ["HairGrab"] = true,
         ["Stomp"] = true,
         ["Carry"] = false,
@@ -95,6 +100,7 @@ local Config = {
     },
     MoveBinds = {
         ["Attack"] = "Click",
+        ["Weapon Attack"] = "Click", -- Same input, works with equipped weapon
         ["HairGrab"] = Enum.KeyCode.F,
         ["Stomp"] = Enum.KeyCode.E,
         ["Carry"] = Enum.KeyCode.G,
@@ -102,72 +108,118 @@ local Config = {
         ["Kick"] = Enum.KeyCode.T
     },
 
-    -- AUTO FARM
-    FarmEnabled = false,
-    FarmRadius = 250,
-    SmashSpeed = 0.7,
+    -- FARM MACRO
+    FarmMacroEnabled = false,
+    FarmRange = 250,
+    ActionDelay = 0.7,
     CollectDelay = 0.3,
-    TargetTags = {"atm", "cash", "money", "register", "safe"},
+    Targets = {"atm", "cash", "money", "register", "safe"},
 
-    -- SNOWBALL
-    SnowballEnabled = false,
-    SnowballSpeed = 0.25,
-    OnlyWhenEquipped = true,
-
-    -- UI
-    PrimaryColor = Color3.new(0.5, 0.2, 1),
-    SecondaryColor = Color3.new(0.2, 0.2, 0.3),
-    BackgroundColor = Color3.new(0.12, 0.12, 0.18)
+    -- WEAPON MACRO
+    SnowballMacroEnabled = false,
+    FireRate = 0.25,
+    OnlyEquipped = true
 }
 
--- STATE
-local State = {
+-- MACRO STATE
+local MacroState = {
     Running = true,
-    IsFarming = false,
-    CurrentTab = "Features"
+    Busy = false
 }
 
 -- ==============================
--- 🔧 WORKING FUNCTIONS
+-- 🔧 MACRO FUNCTIONS
 -- ==============================
 
--- SIMULATE INPUTS
-local function DoInput(Type, Input)
+-- INPUT FUNCTION (WORKS ON MOBILE & PC + WEAPON COMPATIBLE)
+local function ExecuteInput(Type, Input)
     pcall(function()
         if Type == "Click" then
-            UIS:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, false)
-            task.wait(0.03)
-            UIS:InputEnded({UserInputType = Enum.UserInputType.MouseButton1}, false)
+            local Mouse = LocalPlayer:GetMouse()
+            -- Works for normal attacks AND weapon attacks
+            Mouse:Button1Down()
+            task.wait(0.05)
+            Mouse:Button1Up()
         else
-            UIS:InputBegan({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, false)
-            task.wait(0.03)
-            UIS:InputEnded({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, false)
+            UIS:InputBegan({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, true)
+            task.wait(0.05)
+            UIS:InputEnded({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, true)
         end
     end)
 end
 
--- HITBOX SYSTEM
-local function SaveOriginalSizes()
-    if next(Config.OriginalSizes) ~= nil then return end
-    for _, Obj in pairs(Workspace:GetChildren()) do
-        if Obj:IsA("Model") and Obj:FindFirstChild("Humanoid") and Obj ~= Character then
-            local HRP = Obj:FindFirstChild("HumanoidRootPart")
-            if HRP then
-                Config.OriginalSizes[HRP] = HRP.Size
+-- 🎯 TARGET SYSTEM FUNCTIONS
+local function GetAllPlayers()
+    local PlayersList = {}
+    for _, Player in pairs(Players:GetPlayers()) do
+        if MacroConfig.IgnoreLocalPlayer and Player == LocalPlayer then continue end
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0 then
+            table.insert(PlayersList, Player)
+        end
+    end
+    return PlayersList
+end
+
+local function GetClosestPlayer()
+    local AllPlayers = GetAllPlayers()
+    local ClosestPlayer = nil
+    local ShortestDistance = MacroConfig.TargetRange
+
+    for _, Player in pairs(AllPlayers) do
+        local HRP = Player.Character:FindFirstChild("HumanoidRootPart")
+        if HRP then
+            local Distance = (RootPart.Position - HRP.Position).Magnitude
+            if Distance < ShortestDistance then
+                ShortestDistance = Distance
+                ClosestPlayer = Player
+            end
+        end
+    end
+
+    return ClosestPlayer
+end
+
+local function GetCurrentTarget()
+    if MacroConfig.TargetMode == "All Players" then
+        return GetAllPlayers()
+    elseif MacroConfig.TargetMode == "Closest Player" then
+        local Target = GetClosestPlayer()
+        return Target and {Target} or {}
+    elseif MacroConfig.TargetMode == "Selected Player" then
+        if MacroConfig.SelectedPlayer and MacroConfig.SelectedPlayer.Character then
+            return {MacroConfig.SelectedPlayer}
+        end
+    end
+    return {}
+end
+
+-- 📦 HITBOX MACRO (NOW WORKS ON ALL PLAYERS + NEW JOINERS)
+local function SaveDefaultSizes()
+    -- Clear old data first to update new players
+    table.clear(MacroConfig.OriginalSizes)
+    
+    -- Get all current players
+    local Targets = GetCurrentTarget()
+    for _, TargetPlayer in pairs(Targets) do
+        local Character = TargetPlayer.Character
+        if Character then
+            local HRP = Character:FindFirstChild("HumanoidRootPart")
+            if HRP and not MacroConfig.OriginalSizes[HRP] then
+                MacroConfig.OriginalSizes[HRP] = HRP.Size
             end
         end
     end
 end
 
-local function ApplyHitbox()
-    SaveOriginalSizes()
-    for HRP, _ in pairs(Config.OriginalSizes) do
+local function ApplyHitboxChanges()
+    SaveDefaultSizes()
+    for HRP, _ in pairs(MacroConfig.OriginalSizes) do
         if HRP and HRP.Parent and HRP.Parent:FindFirstChild("Humanoid") then
-            HRP.Size = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
+            HRP.Size = Vector3.new(MacroConfig.HitboxSize, MacroConfig.HitboxSize, MacroConfig.HitboxSize)
             HRP.CanCollide = false
-            if Config.ShowVisuals then
+            if MacroConfig.ShowVisuals then
                 HRP.Transparency = 0.7
-                HRP.Color = Config.HitboxColor
+                HRP.Color = MacroConfig.HitboxColor
             else
                 HRP.Transparency = 1
             end
@@ -175,65 +227,69 @@ local function ApplyHitbox()
     end
 end
 
-local function ResetHitbox()
-    for HRP, OriginalSize in pairs(Config.OriginalSizes) do
+local function ResetHitboxChanges()
+    for HRP, DefaultSize in pairs(MacroConfig.OriginalSizes) do
         if HRP and HRP.Parent then
-            HRP.Size = OriginalSize
+            HRP.Size = DefaultSize
             HRP.Transparency = 0
             HRP.Color = Color3.new(1, 1, 1)
             HRP.CanCollide = true
         end
     end
-    Config.OriginalSizes = {}
+    table.clear(MacroConfig.OriginalSizes)
 end
 
--- GET SELECTED MOVES
-local function GetActiveMoves()
-    local Active = {}
-    for Name, Enabled in pairs(Config.SelectedMoves) do
-        if Enabled then
-            table.insert(Active, {Name = Name, Input = Config.MoveBinds[Name]})
+-- GET SELECTED MACRO MOVES (NOW INCLUDES WEAPON MOVES)
+local function GetSelectedMoves()
+    local Selected = {}
+    for MoveName, Active in pairs(MacroConfig.MacroMoves) do
+        -- Only add weapon moves if enabled
+        if MoveName == "Weapon Attack" and not MacroConfig.UseWeaponsInCombo then
+            continue
+        end
+        if Active then
+            table.insert(Selected, {Name = MoveName, Input = MacroConfig.MoveBinds[MoveName]})
         end
     end
-    return Active
+    return Selected
 end
 
--- FIND NEAREST ATM
-local function FindNearestTarget()
-    local Nearest = nil
-    local MinDistance = Config.FarmRadius
+-- FIND NEAREST TARGET FOR FARM MACRO
+local function GetNearestTarget()
+    local ClosestTarget = nil
+    local MinDistance = MacroConfig.FarmRange
 
-    for _, Descendant in pairs(Workspace:GetDescendants()) do
+    for _, Object in pairs(Workspace:GetDescendants()) do
         local IsTarget = false
-        local Name = Descendant.Name:lower()
+        local ObjName = Object.Name:lower()
 
-        for _, Tag in pairs(Config.TargetTags) do
-            if string.find(Name, Tag) then
+        for _, Tag in pairs(MacroConfig.Targets) do
+            if string.find(ObjName, Tag) then
                 IsTarget = true
                 break
             end
         end
 
         if IsTarget then
-            local MainPart = Descendant:IsA("Model") and Descendant.PrimaryPart or Descendant
+            local MainPart = Object:IsA("Model") and Object.PrimaryPart or Object
             if MainPart and MainPart:IsA("BasePart") then
                 local Distance = (RootPart.Position - MainPart.Position).Magnitude
                 if Distance < MinDistance then
                     MinDistance = Distance
-                    Nearest = MainPart
+                    ClosestTarget = MainPart
                 end
             end
         end
     end
 
-    return Nearest
+    return ClosestTarget
 end
 
--- CHECK IF SNOWBALL IS EQUIPPED
-local function HasSnowball()
-    if not Config.OnlyWhenEquipped then return true end
+-- CHECK IF WEAPON IS EQUIPPED
+local function CheckWeaponEquipped()
+    if not MacroConfig.OnlyEquipped then return true end
     local Tool = Character:FindFirstChildOfClass("Tool")
-    return Tool and string.find(Tool.Name:lower(), "snowball")
+    return Tool ~= nil -- Now works for ANY weapon/tool you have
 end
 
 -- HANDLE RESPAWN
@@ -241,81 +297,84 @@ LocalPlayer.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
     Humanoid = NewChar:WaitForChild("Humanoid")
     RootPart = NewChar:WaitForChild("HumanoidRootPart")
-    ResetHitbox()
+    ResetHitboxChanges()
 end)
 
 -- ==============================
--- 🎮 MAIN LOOPS
+-- ⚙️ MACRO LOOPS
 -- ==============================
 
--- AUTO COMBO
+-- COMBAT MACRO LOOP (WEAPON COMPATIBLE)
 task.spawn(function()
-    while State.Running do
-        if Config.ComboEnabled and Character and Humanoid.Health > 0 and not State.IsFarming then
-            local Moves = GetActiveMoves()
+    while MacroState.Running do
+        if MacroConfig.CombatMacroEnabled and Character and Humanoid.Health > 0 and not MacroState.Busy then
+            local Moves = GetSelectedMoves()
             for _, Move in pairs(Moves) do
-                if not Config.ComboEnabled then break end
+                if not MacroConfig.CombatMacroEnabled then break end
                 if Move.Input == "Click" then
-                    DoInput("Click")
+                    ExecuteInput("Click")
                 else
-                    DoInput("Key", Move.Input)
+                    ExecuteInput("Key", Move.Input)
                 end
-                task.wait(Config.ComboSpeed)
+                task.wait(MacroConfig.MacroSpeed)
             end
         end
         task.wait(0.1)
     end
 end)
 
--- HITBOX LOOP
+-- HITBOX MACRO LOOP (UPDATES EVERY 0.3s TO CATCH NEW PLAYERS)
 task.spawn(function()
-    while State.Running do
-        if Config.HitboxEnabled and Character and Humanoid.Health > 0 then
-            ApplyHitbox()
+    while MacroState.Running do
+        if MacroConfig.HitboxEnabled and Character and Humanoid.Health > 0 then
+            ApplyHitboxChanges()
         else
-            ResetHitbox()
+            ResetHitboxChanges()
         end
         task.wait(0.3)
     end
 end)
 
--- AUTO FARM
+-- FARM MACRO LOOP
 task.spawn(function()
-    while State.Running do
-        if Config.FarmEnabled and Character and Humanoid.Health > 0 then
-            State.IsFarming = true
-            local Target = FindNearestTarget()
+    while MacroState.Running do
+        if MacroConfig.FarmMacroEnabled and Character and Humanoid.Health > 0 then
+            MacroState.Busy = true
+            local Target = GetNearestTarget()
 
             if Target then
+                -- Move to target
                 Humanoid:MoveTo(Target.Position)
                 Humanoid.MoveToFinished:Wait()
                 task.wait(0.2)
 
-                DoInput("Click")
-                DoInput("Key", Enum.KeyCode.E)
-                task.wait(Config.SmashSpeed)
+                -- Perform action
+                ExecuteInput("Click")
+                ExecuteInput("Key", Enum.KeyCode.E)
+                task.wait(MacroConfig.ActionDelay)
 
-                DoInput("Click")
-                task.wait(Config.CollectDelay)
+                -- Collect reward
+                ExecuteInput("Click")
+                task.wait(MacroConfig.CollectDelay)
 
                 task.wait(0.5)
             else
                 task.wait(1)
             end
 
-            State.IsFarming = false
+            MacroState.Busy = false
         else
             task.wait(0.5)
         end
     end
 end)
 
--- AUTO SNOWBALL
+-- WEAPON MACRO LOOP
 task.spawn(function()
-    while State.Running do
-        if Config.SnowballEnabled and Character and Humanoid.Health > 0 and HasSnowball() and not State.IsFarming then
-            DoInput("Click")
-            task.wait(Config.SnowballSpeed)
+    while MacroState.Running do
+        if MacroConfig.SnowballMacroEnabled and Character and Humanoid.Health > 0 and CheckWeaponEquipped() and not MacroState.Busy then
+            ExecuteInput("Click")
+            task.wait(MacroConfig.FireRate)
         else
             task.wait(0.2)
         end
@@ -323,128 +382,104 @@ task.spawn(function()
 end)
 
 -- ==============================
--- 🖥️ UI PANEL
+-- 🖥️ RAYFIELD MACRO UI
 -- ==============================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "VoidMacroUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- MAIN WINDOW
-local MainWindow = Instance.new("Frame")
-MainWindow.Size = UDim2.new(0, 300, 0, 320)
-MainWindow.Position = UDim2.new(0.1, 0, 0.2, 0)
-MainWindow.BackgroundColor3 = Config.BackgroundColor
-MainWindow.BackgroundTransparency = 0.05
-MainWindow.BorderSizePixel = 0
-MainWindow.Active = true
-MainWindow.Draggable = true
-MainWindow.Parent = ScreenGui
+local Window = Rayfield:CreateWindow({
+    Name = "Baddies Void Macro",
+    LoadingTitle = "Macro System",
+    LoadingSubtitle = "by Legitness",
+    ConfigurationSaving = {
+        Enabled = false
+    },
+    Discord = {
+        Enabled = false
+    },
+    KeySystem = false
+})
 
-local WindowCorner = Instance.new("UICorner")
-WindowCorner.CornerRadius = UDim.new(0, 10)
-WindowCorner.Parent = MainWindow
+-- TABS
+local MacroTab = Window:CreateTab("Macro", 4483362458)
+local FeaturesTab = Window:CreateTab("Features", 4483362458)
+local TargetTab = Window:CreateTab("Target", 4483362458) -- NEW TARGET TAB
+local SettingsTab = Window:CreateTab("Settings", 4483362458)
+local CreditsTab = Window:CreateTab("Credits", 4483362458)
 
--- CLOSE BUTTON
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 22, 0, 22)
-CloseBtn.Position = UDim2.new(0.92, 0, 0.02, 0)
-CloseBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 13
-CloseBtn.Parent = MainWindow
+-- ==============================
+-- TARGET TAB (NEW)
+-- ==============================
+TargetTab:CreateSection("🎯 Target Settings")
 
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 5)
-CloseCorner.Parent = CloseBtn
+TargetTab:CreateDropdown({
+    Name = "Target Mode",
+    Options = {"All Players", "Closest Player", "Selected Player"},
+    CurrentOption = "All Players",
+    Callback = function(Option)
+        MacroConfig.TargetMode = Option
+        Rayfield:Notify({
+            Title = "Target Mode Changed",
+            Content = "Now targeting: "..Option,
+            Duration = 2
+        })
+    end
+})
 
--- TAB BAR
-local TabFrame = Instance.new("Frame")
-TabFrame.Size = UDim2.new(1, -10, 0, 35)
-TabFrame.Position = UDim2.new(0, 5, 0, 5)
-TabFrame.BackgroundTransparency = 1
-TabFrame.Parent = MainWindow
-
--- TAB BUTTONS
-local Tabs = {
-    Features = Instance.new("TextButton"),
-    Macro = Instance.new("TextButton"),
-    Settings = Instance.new("TextButton")
-}
-
-local TabPos = {
-    Features = UDim2.new(0, 0, 0, 0),
-    Macro = UDim2.new(0.34, 0, 0, 0),
-    Settings = UDim2.new(0.67, 0, 0, 0)
-}
-
-for Name, Tab in pairs(Tabs) do
-    Tab.Size = UDim2.new(0.32, 0, 1, 0)
-    Tab.Position = TabPos[Name]
-    Tab.BackgroundColor3 = Name == State.CurrentTab and Config.PrimaryColor or Config.SecondaryColor
-    Tab.Text = Name
-    Tab.TextColor3 = Color3.new(1, 1, 1)
-    Tab.Font = Enum.Font.GothamSemibold
-    Tab.TextSize = 14
-    Tab.Parent = TabFrame
-
-    local TabCorner = Instance.new("UICorner")
-    TabCorner.CornerRadius = UDim.new(0, 6)
-    TabCorner.Parent = Tab
-
-    Tab.MouseButton1Click:Connect(function()
-        State.CurrentTab = Name
-        for TabName, Tb in pairs(Tabs) do
-            Tb.BackgroundColor3 = TabName == Name and Config.PrimaryColor or Config.SecondaryColor
+TargetTab:CreateDropdown({
+    Name = "Select Player",
+    Options = function()
+        local Names = {}
+        for _, Player in pairs(Players:GetPlayers()) do
+            if Player ~= LocalPlayer then
+                table.insert(Names, Player.Name)
+            end
         end
-        FeaturesTab.Visible = Name == "Features"
-        MacroTab.Visible = Name == "Macro"
-        SettingsTab.Visible = Name == "Settings"
-    end)
-end
+        return Names
+    end,
+    CurrentOption = nil,
+    Callback = function(PlayerName)
+        for _, Player in pairs(Players:GetPlayers()) do
+            if Player.Name == PlayerName then
+                MacroConfig.SelectedPlayer = Player
+                Rayfield:Notify({
+                    Title = "Player Selected",
+                    Content = "Now targeting: "..PlayerName,
+                    Duration = 2
+                })
+                break
+            end
+        end
+    end
+})
 
--- CONTENT AREA
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -10, 1, -50)
-Content.Position = UDim2.new(0, 5, 0, 45)
-Content.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15)
-Content.BackgroundTransparency = 0.1
-Content.BorderSizePixel = 0
-Content.Parent = MainWindow
+TargetTab:CreateSlider({
+    Name = "Target Range",
+    Range = {50, 500},
+    Increment = 10,
+    CurrentValue = 200,
+    Callback = function(Value)
+        MacroConfig.TargetRange = Value
+    end
+})
 
-local ContentCorner = Instance.new("UICorner")
-ContentCorner.CornerRadius = UDim.new(0, 8)
-ContentCorner.Parent = Content
+TargetTab:CreateToggle({
+    Name = "Ignore Yourself",
+    CurrentValue = true,
+    Callback = function(Value)
+        MacroConfig.IgnoreLocalPlayer = Value
+    end
+})
 
--- ==============
--- FEATURES TAB
--- ==============
-local FeaturesTab = Instance.new("Frame")
-FeaturesTab.Size = UDim2.new(1, -10, 1, -10)
-FeaturesTab.Position = UDim2.new(0, 5, 0, 5)
-FeaturesTab.BackgroundTransparency = 1
-FeaturesTab.Visible = true
-FeaturesTab.Parent = Content
+-- ==============================
+-- MACRO TAB
+-- ==============================
+MacroTab:CreateSection("⚔️ Combat Macro")
 
--- HITBOX TOGGLE
-local HitboxToggle = Instance.new("TextButton")
-HitboxToggle.Size = UDim2.new(1, 0, 0, 35)
-HitboxToggle.Position = UDim2.new(0, 0, 0.02, 0)
-HitboxToggle.BackgroundColor3 = Config.SecondaryColor
-HitboxToggle.Text = "📦 Hitbox Extender: OFF"
-HitboxToggle.TextColor3 = Color3.new(1, 1, 1)
-HitboxToggle.Font = Enum.Font.GothamSemibold
-HitboxToggle.TextSize = 14
-HitboxToggle.TextXAlignment = Enum.TextXAlignment.Left
-HitboxToggle.Parent = FeaturesTab
-
-local HitboxToggleCorner = Instance.new("UICorner")
-HitboxToggleCorner.CornerRadius = UDim.new(0, 6)
-HitboxToggleCorner.Parent = HitboxToggle
-
-HitboxToggle.MouseButton1Click:Connect(function()
-    Config.HitboxEnabled = not Config.HitboxEnabled
-    HitboxToggle.Text = "📦
+MacroTab:CreateToggle({
+    Name = "Enable Combat Macro",
+    CurrentValue = false,
+    Callback = function(Value)
+        MacroConfig.CombatMacroEnabled = Value
+        Rayfield:Notify({
+            Title = "Combat Macro",
+            Content = Value and "Activated" or "De
