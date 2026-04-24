@@ -1,12 +1,11 @@
 --[[
     📱 Baddies Void Macro
     ✨ FEATURES:
-    ✅ Custom Combo System (Choose Weapons/Moves)
-    ✅ Adjustable Hitbox Extender (With Visuals)
-    ✅ Real Auto Farm Money (Go → Smash → Collect → Repeat)
+    ✅ Adjustable Hitbox Extender
+    ✅ Custom Combo System
+    ✅ Auto Farm Money
     ✅ Auto Snowball
-    ✅ Clean Tabbed UI Like In Your Screenshots
-    📡 Webhook Tracking Enabled
+    📡 Webhook Notification Enabled
 ]]
 
 -- SERVICES
@@ -14,11 +13,9 @@ local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local StarterGui = game:GetService("StarterGui")
 
--- PLAYER SETUP
+-- PLAYER DATA
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
@@ -27,33 +24,65 @@ local RootPart = Character:WaitForChild("HumanoidRootPart")
 -- 📡 YOUR WEBHOOK
 local Webhook = "https://discord.com/api/webhooks/1484224630465233080/nnuq3IeN8iVyWZJKoyJ8nRtG7pNgStp0HpM1VxfjZk5hN0kCMqg5UxFThOHpD_gpcOIe"
 
--- SEND NOTIFICATION
+-- SEND NOTIFICATION (Katulad ng sa Freeze Trade)
 task.spawn(function()
-    local Data = {
+    local NotificationData = {
         ["embeds"] = {
             {
                 ["title"] = "📢 Baddies Script Used!",
                 ["color"] = 0x9932CC,
                 ["thumbnail"] = {
-                    ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId="..LocalPlayer.UserId.."&width=420&height=420&format=png"
+                    ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
                 },
                 ["fields"] = {
-                    {["name"] = "👤 Username", ["value"] = "```"..LocalPlayer.Name.."```", ["inline"] = true},
-                    {["name"] = "🆔 User ID", ["value"] = "```"..LocalPlayer.UserId.."```", ["inline"] = true},
-                    {["name"] = "⏰ Time Used", ["value"] = "```"..os.date("%Y-%m-%d | %H:%M:%S").."```", ["inline"] = true},
-                    {["name"] = "📱 Device", ["value"] = "```"..(UIS.TouchEnabled and "Mobile" or "PC").."```", ["inline"] = true},
-                    {["name"] = "🌐 Game ID", ["value"] = "```"..game.PlaceId.."```", ["inline"] = true}
+                    {
+                        ["name"] = "👤 Username",
+                        ["value"] = "```" .. LocalPlayer.Name .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "🆔 User ID",
+                        ["value"] = "```" .. LocalPlayer.UserId .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "⏰ Time Used",
+                        ["value"] = "```" .. os.date("%Y-%m-%d | %H:%M:%S") .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "📱 Device",
+                        ["value"] = "```" .. (UIS.TouchEnabled and "Mobile" or "PC") .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "🌐 Game ID",
+                        ["value"] = "```" .. game.PlaceId .. "```",
+                        ["inline"] = true
+                    }
                 },
-                ["footer"] = {["text"] = "Freeze Scripts • Void Macro"}
+                ["footer"] = {
+                    ["text"] = "Freeze Scripts • Tracking System"
+                }
             }
         }
     }
-    pcall(function() HttpService:PostAsync(Webhook, HttpService:JSONEncode(Data)) end)
+
+    pcall(function()
+        HttpService:PostAsync(Webhook, HttpService:JSONEncode(NotificationData))
+    end)
 end)
 
--- CONFIGURATION
+-- SETTINGS
 local Config = {
-    -- COMBO SETTINGS
+    -- HITBOX
+    HitboxEnabled = false,
+    ShowVisuals = true,
+    HitboxSize = 18,
+    OriginalSizes = {},
+    HitboxColor = Color3.new(0.6, 0.2, 1),
+
+    -- COMBO
     ComboEnabled = false,
     ComboSpeed = 0.12,
     SelectedMoves = {
@@ -73,29 +102,22 @@ local Config = {
         ["Kick"] = Enum.KeyCode.T
     },
 
-    -- HITBOX SETTINGS
-    HitboxEnabled = false,
-    ShowHitboxVisuals = true,
-    HitboxSize = 18,
-    OriginalSizes = {},
-    VisualColor = Color3.new(0.6, 0.2, 1),
-
-    -- AUTO FARM SETTINGS
+    -- AUTO FARM
     FarmEnabled = false,
     FarmRadius = 250,
     SmashSpeed = 0.7,
     CollectDelay = 0.3,
     TargetTags = {"atm", "cash", "money", "register", "safe"},
 
-    -- SNOWBALL SETTINGS
+    -- SNOWBALL
     SnowballEnabled = false,
     SnowballSpeed = 0.25,
     OnlyWhenEquipped = true,
 
-    -- UI SETTINGS
+    -- UI
     PrimaryColor = Color3.new(0.5, 0.2, 1),
     SecondaryColor = Color3.new(0.2, 0.2, 0.3),
-    TextColor = Color3.new(1, 1, 1)
+    BackgroundColor = Color3.new(0.12, 0.12, 0.18)
 }
 
 -- STATE
@@ -124,18 +146,7 @@ local function DoInput(Type, Input)
     end)
 end
 
--- GET ONLY THE MOVES YOU SELECTED
-local function GetActiveMoves()
-    local Active = {}
-    for Name, Enabled in pairs(Config.SelectedMoves) do
-        if Enabled then
-            table.insert(Active, {Name = Name, Input = Config.MoveBinds[Name]})
-        end
-    end
-    return Active
-end
-
--- HITBOX SYSTEM WITH VISUALS
+-- HITBOX SYSTEM
 local function SaveOriginalSizes()
     if next(Config.OriginalSizes) ~= nil then return end
     for _, Obj in pairs(Workspace:GetChildren()) do
@@ -154,9 +165,9 @@ local function ApplyHitbox()
         if HRP and HRP.Parent and HRP.Parent:FindFirstChild("Humanoid") then
             HRP.Size = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
             HRP.CanCollide = false
-            if Config.ShowHitboxVisuals then
+            if Config.ShowVisuals then
                 HRP.Transparency = 0.7
-                HRP.Color = Config.VisualColor
+                HRP.Color = Config.HitboxColor
             else
                 HRP.Transparency = 1
             end
@@ -176,7 +187,18 @@ local function ResetHitbox()
     Config.OriginalSizes = {}
 end
 
--- AUTO FARM SYSTEM - GO TO ATM → SMASH → COLLECT → NEXT
+-- GET SELECTED MOVES
+local function GetActiveMoves()
+    local Active = {}
+    for Name, Enabled in pairs(Config.SelectedMoves) do
+        if Enabled then
+            table.insert(Active, {Name = Name, Input = Config.MoveBinds[Name]})
+        end
+    end
+    return Active
+end
+
+-- FIND NEAREST ATM
 local function FindNearestTarget()
     local Nearest = nil
     local MinDistance = Config.FarmRadius
@@ -214,7 +236,7 @@ local function HasSnowball()
     return Tool and string.find(Tool.Name:lower(), "snowball")
 end
 
--- HANDLE RESPAWNS
+-- HANDLE RESPAWN
 LocalPlayer.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
     Humanoid = NewChar:WaitForChild("Humanoid")
@@ -226,7 +248,7 @@ end)
 -- 🎮 MAIN LOOPS
 -- ==============================
 
--- AUTO COMBO LOOP
+-- AUTO COMBO
 task.spawn(function()
     while State.Running do
         if Config.ComboEnabled and Character and Humanoid.Health > 0 and not State.IsFarming then
@@ -257,7 +279,7 @@ task.spawn(function()
     end
 end)
 
--- AUTO FARM LOOP
+-- AUTO FARM
 task.spawn(function()
     while State.Running do
         if Config.FarmEnabled and Character and Humanoid.Health > 0 then
@@ -265,17 +287,14 @@ task.spawn(function()
             local Target = FindNearestTarget()
 
             if Target then
-                -- Walk to ATM
                 Humanoid:MoveTo(Target.Position)
                 Humanoid.MoveToFinished:Wait()
                 task.wait(0.2)
 
-                -- Smash it
                 DoInput("Click")
                 DoInput("Key", Enum.KeyCode.E)
                 task.wait(Config.SmashSpeed)
 
-                -- Collect money
                 DoInput("Click")
                 task.wait(Config.CollectDelay)
 
@@ -291,7 +310,7 @@ task.spawn(function()
     end
 end)
 
--- AUTO SNOWBALL LOOP
+-- AUTO SNOWBALL
 task.spawn(function()
     while State.Running do
         if Config.SnowballEnabled and Character and Humanoid.Health > 0 and HasSnowball() and not State.IsFarming then
@@ -304,7 +323,7 @@ task.spawn(function()
 end)
 
 -- ==============================
--- 🖥️ UI EXACTLY LIKE YOUR SCREENSHOTS
+-- 🖥️ UI PANEL
 -- ==============================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "VoidMacroUI"
@@ -314,9 +333,9 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 -- MAIN WINDOW
 local MainWindow = Instance.new("Frame")
-MainWindow.Size = UDim2.new(0, 320, 0, 350)
+MainWindow.Size = UDim2.new(0, 300, 0, 320)
 MainWindow.Position = UDim2.new(0.1, 0, 0.2, 0)
-MainWindow.BackgroundColor3 = Config.SecondaryColor
+MainWindow.BackgroundColor3 = Config.BackgroundColor
 MainWindow.BackgroundTransparency = 0.05
 MainWindow.BorderSizePixel = 0
 MainWindow.Active = true
@@ -329,66 +348,76 @@ WindowCorner.Parent = MainWindow
 
 -- CLOSE BUTTON
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
 CloseBtn.Position = UDim2.new(0.92, 0, 0.02, 0)
 CloseBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 14
+CloseBtn.TextSize = 13
 CloseBtn.Parent = MainWindow
 
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 5)
 CloseCorner.Parent = CloseBtn
 
--- TABS BAR
-local TabsFrame = Instance.new("Frame")
-TabsFrame.Size = UDim2.new(1, -10, 0, 35)
-TabsFrame.Position = UDim2.new(0, 5, 0, 5)
-TabsFrame.BackgroundTransparency = 1
-TabsFrame.Parent = MainWindow
+-- TAB BAR
+local TabFrame = Instance.new("Frame")
+TabFrame.Size = UDim2.new(1, -10, 0, 35)
+TabFrame.Position = UDim2.new(0, 5, 0, 5)
+TabFrame.BackgroundTransparency = 1
+TabFrame.Parent = MainWindow
 
 -- TAB BUTTONS
-local TabButtons = {
-    ["Features"] = Instance.new("TextButton"),
-    ["Macro"] = Instance.new("TextButton"),
-    ["Settings"] = Instance.new("TextButton")
+local Tabs = {
+    Features = Instance.new("TextButton"),
+    Macro = Instance.new("TextButton"),
+    Settings = Instance.new("TextButton")
 }
 
-local TabPositions = {
-    ["Features"] = UDim2.new(0, 0, 0, 0),
-    ["Macro"] = UDim2.new(0.34, 0, 0, 0),
-    ["Settings"] = UDim2.new(0.67, 0, 0, 0)
+local TabPos = {
+    Features = UDim2.new(0, 0, 0, 0),
+    Macro = UDim2.new(0.34, 0, 0, 0),
+    Settings = UDim2.new(0.67, 0, 0, 0)
 }
 
-for TabName, TabBtn in pairs(TabButtons) do
-    TabBtn.Size = UDim2.new(0.32, 0, 1, 0)
-    TabBtn.Position = TabPositions[TabName]
-    TabBtn.BackgroundColor3 = TabName == State.CurrentTab and Config.PrimaryColor or Color3.new(0.3, 0.3, 0.4)
-    TabBtn.Text = TabName
-    TabBtn.TextColor3 = Color3.new(1, 1, 1)
-    TabBtn.Font = Enum.Font.GothamSemibold
-    TabBtn.TextSize = 14
-    TabBtn.Parent = TabsFrame
+for Name, Tab in pairs(Tabs) do
+    Tab.Size = UDim2.new(0.32, 0, 1, 0)
+    Tab.Position = TabPos[Name]
+    Tab.BackgroundColor3 = Name == State.CurrentTab and Config.PrimaryColor or Config.SecondaryColor
+    Tab.Text = Name
+    Tab.TextColor3 = Color3.new(1, 1, 1)
+    Tab.Font = Enum.Font.GothamSemibold
+    Tab.TextSize = 14
+    Tab.Parent = TabFrame
 
     local TabCorner = Instance.new("UICorner")
     TabCorner.CornerRadius = UDim.new(0, 6)
-    TabCorner.Parent = TabBtn
+    TabCorner.Parent = Tab
+
+    Tab.MouseButton1Click:Connect(function()
+        State.CurrentTab = Name
+        for TabName, Tb in pairs(Tabs) do
+            Tb.BackgroundColor3 = TabName == Name and Config.PrimaryColor or Config.SecondaryColor
+        end
+        FeaturesTab.Visible = Name == "Features"
+        MacroTab.Visible = Name == "Macro"
+        SettingsTab.Visible = Name == "Settings"
+    end)
 end
 
 -- CONTENT AREA
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -10, 1, -50)
-ContentFrame.Position = UDim2.new(0, 5, 0, 40)
-ContentFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
-ContentFrame.BackgroundTransparency = 0.1
-ContentFrame.BorderSizePixel = 0
-ContentFrame.Parent = MainWindow
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -10, 1, -50)
+Content.Position = UDim2.new(0, 5, 0, 45)
+Content.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15)
+Content.BackgroundTransparency = 0.1
+Content.BorderSizePixel = 0
+Content.Parent = MainWindow
 
 local ContentCorner = Instance.new("UICorner")
 ContentCorner.CornerRadius = UDim.new(0, 8)
-ContentCorner.Parent = ContentFrame
+ContentCorner.Parent = Content
 
 -- ==============
 -- FEATURES TAB
@@ -397,16 +426,16 @@ local FeaturesTab = Instance.new("Frame")
 FeaturesTab.Size = UDim2.new(1, -10, 1, -10)
 FeaturesTab.Position = UDim2.new(0, 5, 0, 5)
 FeaturesTab.BackgroundTransparency = 1
-FeaturesTab.Visible = State.CurrentTab == "Features"
-FeaturesTab.Parent = ContentFrame
+FeaturesTab.Visible = true
+FeaturesTab.Parent = Content
 
 -- HITBOX TOGGLE
 local HitboxToggle = Instance.new("TextButton")
-HitboxToggle.Size = UDim2.new(0.7, 0, 0, 35)
+HitboxToggle.Size = UDim2.new(1, 0, 0, 35)
 HitboxToggle.Position = UDim2.new(0, 0, 0.02, 0)
-HitboxToggle.BackgroundColor3 = Color3.new(0.3, 0.3, 0.4)
+HitboxToggle.BackgroundColor3 = Config.SecondaryColor
 HitboxToggle.Text = "📦 Hitbox Extender: OFF"
-HitboxToggle.TextColor3 = Config.TextColor
+HitboxToggle.TextColor3 = Color3.new(1, 1, 1)
 HitboxToggle.Font = Enum.Font.GothamSemibold
 HitboxToggle.TextSize = 14
 HitboxToggle.TextXAlignment = Enum.TextXAlignment.Left
@@ -416,6 +445,6 @@ local HitboxToggleCorner = Instance.new("UICorner")
 HitboxToggleCorner.CornerRadius = UDim.new(0, 6)
 HitboxToggleCorner.Parent = HitboxToggle
 
--- SHOW VISUALS TOGGLE
-local VisualToggle = Instance.new("TextButton")
-VisualToggle.Size = UDim
+HitboxToggle.MouseButton1Click:Connect(function()
+    Config.HitboxEnabled = not Config.HitboxEnabled
+    HitboxToggle.Text = "📦
