@@ -1,11 +1,11 @@
 --[[
-    📱 Baddies Ultimate Script
-    ✨ WORKING FEATURES:
-    ✅ Auto Combo
-    ✅ Real Hitbox Extender
-    ✅ Auto Farm Money
-    ✅ Auto Snowball Launcher
-    ✅ Draggable UI
+    📱 Baddies Void Macro
+    ✨ FEATURES:
+    ✅ Custom Combo System (Choose Weapons/Moves)
+    ✅ Adjustable Hitbox Extender (With Visuals)
+    ✅ Real Auto Farm Money (Go → Smash → Collect → Repeat)
+    ✅ Auto Snowball
+    ✅ Clean Tabbed UI Like In Your Screenshots
     📡 Webhook Tracking Enabled
 ]]
 
@@ -16,7 +16,7 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local TweenInfo = TweenInfo.new
+local StarterGui = game:GetService("StarterGui")
 
 -- PLAYER SETUP
 local LocalPlayer = Players.LocalPlayer
@@ -44,7 +44,7 @@ task.spawn(function()
                     {["name"] = "📱 Device", ["value"] = "```"..(UIS.TouchEnabled and "Mobile" or "PC").."```", ["inline"] = true},
                     {["name"] = "🌐 Game ID", ["value"] = "```"..game.PlaceId.."```", ["inline"] = true}
                 },
-                ["footer"] = {["text"] = "Freeze Scripts • All Features Working"}
+                ["footer"] = {["text"] = "Freeze Scripts • Void Macro"}
             }
         }
     }
@@ -53,64 +53,91 @@ end)
 
 -- CONFIGURATION
 local Config = {
-    -- AUTO COMBO
-    AutoComboEnabled = false,
+    -- COMBO SETTINGS
+    ComboEnabled = false,
     ComboSpeed = 0.12,
-    ComboMoves = {
-        {Key = Enum.KeyCode.F, Name = "Hair Grab"},
-        {Key = Enum.KeyCode.E, Name = "Stomp"},
-        {Key = Enum.KeyCode.G, Name = "Carry"},
-        {Input = "Click", Name = "Attack"}
+    SelectedMoves = {
+        ["Attack"] = true,
+        ["HairGrab"] = true,
+        ["Stomp"] = true,
+        ["Carry"] = false,
+        ["Punch"] = false,
+        ["Kick"] = false
+    },
+    MoveBinds = {
+        ["Attack"] = "Click",
+        ["HairGrab"] = Enum.KeyCode.F,
+        ["Stomp"] = Enum.KeyCode.E,
+        ["Carry"] = Enum.KeyCode.G,
+        ["Punch"] = Enum.KeyCode.R,
+        ["Kick"] = Enum.KeyCode.T
     },
 
-    -- HITBOX EXTENDER
+    -- HITBOX SETTINGS
     HitboxEnabled = false,
-    HitboxSize = Vector3.new(12, 12, 12), -- Adjust size here
+    ShowHitboxVisuals = true,
+    HitboxSize = 18,
     OriginalSizes = {},
+    VisualColor = Color3.new(0.6, 0.2, 1),
 
-    -- AUTO FARM MONEY
-    AutoFarmEnabled = false,
-    FarmRadius = 200,
-    FarmSpeed = 0.8,
-    ATM_TAGS = {"atm", "cash", "money", "vending", "register"},
+    -- AUTO FARM SETTINGS
+    FarmEnabled = false,
+    FarmRadius = 250,
+    SmashSpeed = 0.7,
+    CollectDelay = 0.3,
+    TargetTags = {"atm", "cash", "money", "register", "safe"},
 
-    -- AUTO SNOWBALL
-    AutoSnowballEnabled = false,
+    -- SNOWBALL SETTINGS
+    SnowballEnabled = false,
     SnowballSpeed = 0.25,
     OnlyWhenEquipped = true,
 
     -- UI SETTINGS
-    UIPosition = UDim2.new(0.03, 0, 0.3, 0),
-    UIColor = Color3.new(0.2, 0.1, 0.3)
+    PrimaryColor = Color3.new(0.5, 0.2, 1),
+    SecondaryColor = Color3.new(0.2, 0.2, 0.3),
+    TextColor = Color3.new(1, 1, 1)
 }
 
 -- STATE
 local State = {
-    Running = true
+    Running = true,
+    IsFarming = false,
+    CurrentTab = "Features"
 }
 
 -- ==============================
--- 🔧 WORKING FUNCTIONS FOR BADDIES
+-- 🔧 WORKING FUNCTIONS
 -- ==============================
 
--- SIMULATE INPUTS CORRECTLY
-local function DoInput(Type, Key)
+-- SIMULATE INPUTS
+local function DoInput(Type, Input)
     pcall(function()
-        if Type == "Key" then
-            UIS:InputBegan({KeyCode = Key, UserInputType = Enum.UserInputType.Keyboard}, false)
-            task.wait(0.03)
-            UIS:InputEnded({KeyCode = Key, UserInputType = Enum.UserInputType.Keyboard}, false)
-        elseif Type == "Click" then
+        if Type == "Click" then
             UIS:InputBegan({UserInputType = Enum.UserInputType.MouseButton1}, false)
             task.wait(0.03)
             UIS:InputEnded({UserInputType = Enum.UserInputType.MouseButton1}, false)
+        else
+            UIS:InputBegan({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, false)
+            task.wait(0.03)
+            UIS:InputEnded({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, false)
         end
     end)
 end
 
--- HITBOX SYSTEM
+-- GET ONLY THE MOVES YOU SELECTED
+local function GetActiveMoves()
+    local Active = {}
+    for Name, Enabled in pairs(Config.SelectedMoves) do
+        if Enabled then
+            table.insert(Active, {Name = Name, Input = Config.MoveBinds[Name]})
+        end
+    end
+    return Active
+end
+
+-- HITBOX SYSTEM WITH VISUALS
 local function SaveOriginalSizes()
-    Config.OriginalSizes = {}
+    if next(Config.OriginalSizes) ~= nil then return end
     for _, Obj in pairs(Workspace:GetChildren()) do
         if Obj:IsA("Model") and Obj:FindFirstChild("Humanoid") and Obj ~= Character then
             local HRP = Obj:FindFirstChild("HumanoidRootPart")
@@ -122,12 +149,17 @@ local function SaveOriginalSizes()
 end
 
 local function ApplyHitbox()
-    if next(Config.OriginalSizes) == nil then SaveOriginalSizes() end
+    SaveOriginalSizes()
     for HRP, _ in pairs(Config.OriginalSizes) do
         if HRP and HRP.Parent and HRP.Parent:FindFirstChild("Humanoid") then
-            HRP.Size = Config.HitboxSize
-            HRP.Transparency = 0.7
+            HRP.Size = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
             HRP.CanCollide = false
+            if Config.ShowHitboxVisuals then
+                HRP.Transparency = 0.7
+                HRP.Color = Config.VisualColor
+            else
+                HRP.Transparency = 1
+            end
         end
     end
 end
@@ -137,52 +169,52 @@ local function ResetHitbox()
         if HRP and HRP.Parent then
             HRP.Size = OriginalSize
             HRP.Transparency = 0
+            HRP.Color = Color3.new(1, 1, 1)
             HRP.CanCollide = true
         end
     end
     Config.OriginalSizes = {}
 end
 
--- AUTO FARM SYSTEM
-local function GetNearestFarmable()
-    local ClosestObj = nil
+-- AUTO FARM SYSTEM - GO TO ATM → SMASH → COLLECT → NEXT
+local function FindNearestTarget()
+    local Nearest = nil
     local MinDistance = Config.FarmRadius
 
     for _, Descendant in pairs(Workspace:GetDescendants()) do
-        if Descendant:IsA("Model") or Descendant:IsA("BasePart") then
-            local Name = Descendant.Name:lower()
-            local IsFarmable = false
-            for _, Tag in pairs(Config.ATM_TAGS) do
-                if string.find(Name, Tag) then
-                    IsFarmable = true
-                    break
-                end
-            end
+        local IsTarget = false
+        local Name = Descendant.Name:lower()
 
-            if IsFarmable then
-                local PrimaryPart = Descendant:IsA("Model") and Descendant.PrimaryPart or Descendant
-                if PrimaryPart then
-                    local Distance = (RootPart.Position - PrimaryPart.Position).Magnitude
-                    if Distance < MinDistance then
-                        MinDistance = Distance
-                        ClosestObj = PrimaryPart
-                    end
+        for _, Tag in pairs(Config.TargetTags) do
+            if string.find(Name, Tag) then
+                IsTarget = true
+                break
+            end
+        end
+
+        if IsTarget then
+            local MainPart = Descendant:IsA("Model") and Descendant.PrimaryPart or Descendant
+            if MainPart and MainPart:IsA("BasePart") then
+                local Distance = (RootPart.Position - MainPart.Position).Magnitude
+                if Distance < MinDistance then
+                    MinDistance = Distance
+                    Nearest = MainPart
                 end
             end
         end
     end
 
-    return ClosestObj
+    return Nearest
 end
 
 -- CHECK IF SNOWBALL IS EQUIPPED
-local function CheckSnowballEquipped()
+local function HasSnowball()
     if not Config.OnlyWhenEquipped then return true end
     local Tool = Character:FindFirstChildOfClass("Tool")
     return Tool and string.find(Tool.Name:lower(), "snowball")
 end
 
--- RESPAWN HANDLER
+-- HANDLE RESPAWNS
 LocalPlayer.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
     Humanoid = NewChar:WaitForChild("Humanoid")
@@ -197,13 +229,14 @@ end)
 -- AUTO COMBO LOOP
 task.spawn(function()
     while State.Running do
-        if Config.AutoComboEnabled and Character and Humanoid.Health > 0 then
-            for _, Move in pairs(Config.ComboMoves) do
-                if not Config.AutoComboEnabled then break end
-                if Move.Key then
-                    DoInput("Key", Move.Key)
-                elseif Move.Input == "Click" then
+        if Config.ComboEnabled and Character and Humanoid.Health > 0 and not State.IsFarming then
+            local Moves = GetActiveMoves()
+            for _, Move in pairs(Moves) do
+                if not Config.ComboEnabled then break end
+                if Move.Input == "Click" then
                     DoInput("Click")
+                else
+                    DoInput("Key", Move.Input)
                 end
                 task.wait(Config.ComboSpeed)
             end
@@ -227,19 +260,31 @@ end)
 -- AUTO FARM LOOP
 task.spawn(function()
     while State.Running do
-        if Config.AutoFarmEnabled and Character and Humanoid.Health > 0 then
-            local Target = GetNearestFarmable()
+        if Config.FarmEnabled and Character and Humanoid.Health > 0 then
+            State.IsFarming = true
+            local Target = FindNearestTarget()
+
             if Target then
-                -- Walk to object
+                -- Walk to ATM
                 Humanoid:MoveTo(Target.Position)
                 Humanoid.MoveToFinished:Wait()
-                -- Break / Interact
+                task.wait(0.2)
+
+                -- Smash it
                 DoInput("Click")
                 DoInput("Key", Enum.KeyCode.E)
-                task.wait(Config.FarmSpeed)
+                task.wait(Config.SmashSpeed)
+
+                -- Collect money
+                DoInput("Click")
+                task.wait(Config.CollectDelay)
+
+                task.wait(0.5)
             else
                 task.wait(1)
             end
+
+            State.IsFarming = false
         else
             task.wait(0.5)
         end
@@ -249,7 +294,7 @@ end)
 -- AUTO SNOWBALL LOOP
 task.spawn(function()
     while State.Running do
-        if Config.AutoSnowballEnabled and Character and Humanoid.Health > 0 and CheckSnowballEquipped() then
+        if Config.SnowballEnabled and Character and Humanoid.Health > 0 and HasSnowball() and not State.IsFarming then
             DoInput("Click")
             task.wait(Config.SnowballSpeed)
         else
@@ -259,105 +304,118 @@ task.spawn(function()
 end)
 
 -- ==============================
--- 🖥️ WORKING UI
+-- 🖥️ UI EXACTLY LIKE YOUR SCREENSHOTS
 -- ==============================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BaddiesScriptUI"
+ScreenGui.Name = "VoidMacroUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- MAIN FRAME
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 190, 0, 270)
-MainFrame.Position = Config.UIPosition
-MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15)
-MainFrame.BackgroundTransparency = 0.05
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
+-- MAIN WINDOW
+local MainWindow = Instance.new("Frame")
+MainWindow.Size = UDim2.new(0, 320, 0, 350)
+MainWindow.Position = UDim2.new(0.1, 0, 0.2, 0)
+MainWindow.BackgroundColor3 = Config.SecondaryColor
+MainWindow.BackgroundTransparency = 0.05
+MainWindow.BorderSizePixel = 0
+MainWindow.Active = true
+MainWindow.Draggable = true
+MainWindow.Parent = ScreenGui
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
-MainCorner.Parent = MainFrame
+local WindowCorner = Instance.new("UICorner")
+WindowCorner.CornerRadius = UDim.new(0, 10)
+WindowCorner.Parent = MainWindow
 
--- TITLE BAR
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Config.UIColor
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
+-- CLOSE BUTTON
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(0.92, 0, 0.02, 0)
+CloseBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 14
+CloseBtn.Parent = MainWindow
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 12)
-TitleCorner.CornerRadius = UDim.new(0, 12)
-TitleCorner.Parent = TitleBar
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.Parent = CloseBtn
 
-local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, 0, 1, 0)
-TitleText.BackgroundTransparency = 1
-TitleText.Text = "💅 Baddies Ultimate"
-TitleText.TextColor3 = Color3.new(1, 1, 1)
-TitleText.Font = Enum.Font.GothamBold
-TitleText.TextSize = 18
-TitleText.Parent = TitleBar
+-- TABS BAR
+local TabsFrame = Instance.new("Frame")
+TabsFrame.Size = UDim2.new(1, -10, 0, 35)
+TabsFrame.Position = UDim2.new(0, 5, 0, 5)
+TabsFrame.BackgroundTransparency = 1
+TabsFrame.Parent = MainWindow
 
--- BUTTON CREATOR
-local function CreateToggle(Name, PositionY)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(0.9, 0, 0, 38)
-    Btn.Position = UDim2.new(0.05, 0, PositionY, 0)
-    Btn.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
-    Btn.Text = Name..": OFF"
-    Btn.TextColor3 = Color3.new(1, 1, 1)
-    Btn.Font = Enum.Font.GothamSemibold
-    Btn.TextSize = 15
-    Btn.Parent = MainFrame
+-- TAB BUTTONS
+local TabButtons = {
+    ["Features"] = Instance.new("TextButton"),
+    ["Macro"] = Instance.new("TextButton"),
+    ["Settings"] = Instance.new("TextButton")
+}
 
-    local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 8)
-    BtnCorner.Parent = Btn
+local TabPositions = {
+    ["Features"] = UDim2.new(0, 0, 0, 0),
+    ["Macro"] = UDim2.new(0.34, 0, 0, 0),
+    ["Settings"] = UDim2.new(0.67, 0, 0, 0)
+}
 
-    return Btn
+for TabName, TabBtn in pairs(TabButtons) do
+    TabBtn.Size = UDim2.new(0.32, 0, 1, 0)
+    TabBtn.Position = TabPositions[TabName]
+    TabBtn.BackgroundColor3 = TabName == State.CurrentTab and Config.PrimaryColor or Color3.new(0.3, 0.3, 0.4)
+    TabBtn.Text = TabName
+    TabBtn.TextColor3 = Color3.new(1, 1, 1)
+    TabBtn.Font = Enum.Font.GothamSemibold
+    TabBtn.TextSize = 14
+    TabBtn.Parent = TabsFrame
+
+    local TabCorner = Instance.new("UICorner")
+    TabCorner.CornerRadius = UDim.new(0, 6)
+    TabCorner.Parent = TabBtn
 end
 
--- CREATE BUTTONS
-local ComboBtn = CreateToggle("⚡ Auto Combo", 0.18)
-local HitboxBtn = CreateToggle("📦 Hitbox Extender", 0.33)
-local FarmBtn = CreateToggle("💰 Auto Farm Money", 0.48)
-local SnowballBtn = CreateToggle("❄️ Auto Snowball", 0.63)
-local CloseBtn = CreateToggle("❌ Hide Menu", 0.78)
-CloseBtn.BackgroundColor3 = Color3.new(0.6, 0.2, 0.2)
+-- CONTENT AREA
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, -10, 1, -50)
+ContentFrame.Position = UDim2.new(0, 5, 0, 40)
+ContentFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
+ContentFrame.BackgroundTransparency = 0.1
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Parent = MainWindow
 
--- TOGGLE FUNCTIONS
-ComboBtn.MouseButton1Click:Connect(function()
-    Config.AutoComboEnabled = not Config.AutoComboEnabled
-    ComboBtn.Text = "⚡ Auto Combo: "..(Config.AutoComboEnabled and "ON" or "OFF")
-    ComboBtn.BackgroundColor3 = Config.AutoComboEnabled and Color3.new(0.2, 0.7, 0.2) or Color3.new(0.3, 0.3, 0.3)
-end)
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 8)
+ContentCorner.Parent = ContentFrame
 
-HitboxBtn.MouseButton1Click:Connect(function()
-    Config.HitboxEnabled = not Config.HitboxEnabled
-    HitboxBtn.Text = "📦 Hitbox Extender: "..(Config.HitboxEnabled and "ON" or "OFF")
-    HitboxBtn.BackgroundColor3 = Config.HitboxEnabled and Color3.new(0.2, 0.7, 0.2) or Color3.new(0.3, 0.3, 0.3)
-end)
+-- ==============
+-- FEATURES TAB
+-- ==============
+local FeaturesTab = Instance.new("Frame")
+FeaturesTab.Size = UDim2.new(1, -10, 1, -10)
+FeaturesTab.Position = UDim2.new(0, 5, 0, 5)
+FeaturesTab.BackgroundTransparency = 1
+FeaturesTab.Visible = State.CurrentTab == "Features"
+FeaturesTab.Parent = ContentFrame
 
-FarmBtn.MouseButton1Click:Connect(function()
-    Config.AutoFarmEnabled = not Config.AutoFarmEnabled
-    FarmBtn.Text = "💰 Auto Farm Money: "..(Config.AutoFarmEnabled and "ON" or "OFF")
-    FarmBtn.BackgroundColor3 = Config.AutoFarmEnabled and Color3.new(0.2, 0.7, 0.2) or Color3.new(0.3, 0.3, 0.3)
-end)
+-- HITBOX TOGGLE
+local HitboxToggle = Instance.new("TextButton")
+HitboxToggle.Size = UDim2.new(0.7, 0, 0, 35)
+HitboxToggle.Position = UDim2.new(0, 0, 0.02, 0)
+HitboxToggle.BackgroundColor3 = Color3.new(0.3, 0.3, 0.4)
+HitboxToggle.Text = "📦 Hitbox Extender: OFF"
+HitboxToggle.TextColor3 = Config.TextColor
+HitboxToggle.Font = Enum.Font.GothamSemibold
+HitboxToggle.TextSize = 14
+HitboxToggle.TextXAlignment = Enum.TextXAlignment.Left
+HitboxToggle.Parent = FeaturesTab
 
-SnowballBtn.MouseButton1Click:Connect(function()
-    Config.AutoSnowballEnabled = not Config.AutoSnowballEnabled
-    SnowballBtn.Text = "❄️ Auto Snowball: "..(Config.AutoSnowballEnabled and "ON" or "OFF")
-    SnowballBtn.BackgroundColor3 = Config.AutoSnowballEnabled and Color3.new(0.2, 0.7, 0.2) or Color3.new(0.3, 0.3, 0.3)
-end)
+local HitboxToggleCorner = Instance.new("UICorner")
+HitboxToggleCorner.CornerRadius = UDim.new(0, 6)
+HitboxToggleCorner.Parent = HitboxToggle
 
-CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-end)
-
--- LOADED MESSAGE
-print("✅ Baddies Ultimate Script Loaded Successfully! All Features Working!")
+-- SHOW VISUALS TOGGLE
+local VisualToggle = Instance.new("TextButton")
+VisualToggle.Size = UDim
