@@ -1,207 +1,160 @@
-local HttpService = game:GetService("HttpService")
+-- SERVICES
 local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
-local Character = player.Character or player.CharacterAdded:Wait()
+-- PLAYER SETUP
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
-local GameID = game.PlaceId
-local PlayerName = player.Name
-local PlayerID = player.UserId
 
--- 📡 WEBHOOK
-local WebhookURL = "https://discord.com/api/webhooks/1484224630465233080/nnuq3IeN8iVyWZJKoyJ8nRtG7pNgStp0HpM1VxfjZk5hN0kCMqg5UxFThOHpD_gpcOIe"
-local data = {embeds={{title="🚀 Baddies Macro Used!",color=9980012,fields={{name="👤 Username",value="`"..PlayerName.."`",inline=true},{name="🆔 User ID",value="`"..PlayerID.."`",inline=true},{name="🎮 Game ID",value="`"..GameID.."`",inline=true},{name="📱 Device",value="`"..(UserInputService.TouchEnabled and "Mobile" or "PC").."`",inline=true}},timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}}}
-pcall(function() HttpService:PostAsync(WebhookURL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson) end)
+-- 📡 YOUR WEBHOOK (SAME AS FREEZE TRADE)
+local Webhook = "https://discord.com/api/webhooks/1484224630465233080/nnuq3IeN8iVyWZJKoyJ8nRtG7pNgStp0HpM1VxfjZk5hN0kCMqg5UxFThOHpD_gpcOIe"
 
--- 🎨 THEME
-local Theme = {
-    BG = Color3.fromRGB(10,10,15),
-    Panel = Color3.fromRGB(20,20,30),
-    Primary = Color3.fromRGB(153, 50, 204),
-    Secondary = Color3.fromRGB(138, 43, 226),
-    Text = Color3.fromRGB(255,255,255)
-}
+-- SEND NOTIFICATION
+task.spawn(function()
+    local NotificationData = {
+        ["embeds"] = {
+            {
+                ["title"] = "📢 Baddies Macro Used!",
+                ["color"] = 0x9932CC,
+                ["thumbnail"] = {
+                    ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+                },
+                ["fields"] = {
+                    {
+                        ["name"] = "👤 Username",
+                        ["value"] = "```" .. LocalPlayer.Name .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "🆔 User ID",
+                        ["value"] = "```" .. LocalPlayer.UserId .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "⏰ Time Used",
+                        ["value"] = "```" .. os.date("%Y-%m-%d | %H:%M:%S") .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "📱 Device",
+                        ["value"] = "```" .. (UIS.TouchEnabled and "Mobile" or "PC") .. "```",
+                        ["inline"] = true
+                    },
+                    {
+                        ["name"] = "🌐 Game ID",
+                        ["value"] = "```" .. game.PlaceId .. "```",
+                        ["inline"] = true
+                    }
+                },
+                ["footer"] = {
+                    ["text"] = "Freeze Scripts • Macro System"
+                }
+            }
+        }
+    }
 
--- ⚙️ MACRO CONFIGURATION
+    local Success, Error = pcall(function()
+        HttpService:PostAsync(Webhook, HttpService:JSONEncode(NotificationData))
+    end)
+
+    if Success then
+        print("✅ Notification sent successfully")
+    else
+        warn("❌ Failed to send notification: "..Error)
+    end
+end)
+
+-- MACRO CONFIGURATION
 local MacroConfig = {
-    -- HITBOX SETTINGS
-    HitboxEnabled = false, -- OFF by default
-    ShowVisuals = true, -- ON by default
+    -- HITBOX MACRO
+    HitboxEnabled = false,
+    ShowVisuals = true,
     HitboxSize = 18,
     OriginalSizes = {},
     HitboxColor = Color3.new(0.6, 0.2, 1),
 
     -- TARGET SYSTEM
-    TargetMode = "All Players",
+    TargetMode = "All Players", -- Options: "All Players", "Closest Player", "Selected Player"
     SelectedPlayer = nil,
     TargetRange = 200,
     IgnoreLocalPlayer = true,
 
     -- COMBAT MACRO
-    CombatMacroEnabled = false, -- OFF by default
+    CombatMacroEnabled = false,
     MacroSpeed = 0.12,
-    UseWeaponsInCombo = true, -- ON by default
+    UseWeaponsInCombo = true, -- NEW: Allows weapons to work with combo
     MacroMoves = {
-        ["Attack"] = true, -- ON by default
-        ["Weapon Attack"] = true, -- ON by default
-        ["HairGrab"] = true, -- ON by default
-        ["Stomp"] = true, -- ON by default
-        ["Carry"] = false, -- OFF by default
-        ["Punch"] = false, -- OFF by default
-        ["Kick"] = false -- OFF by default
+        ["Attack"] = true,
+        ["Weapon Attack"] = true, -- NEW: Weapon attack support
+        ["HairGrab"] = true,
+        ["Stomp"] = true,
+        ["Carry"] = false,
+        ["Punch"] = false,
+        ["Kick"] = false
     },
     MoveBinds = {
         ["Attack"] = "Click",
-        ["Weapon Attack"] = "Click",
+        ["Weapon Attack"] = "Click", -- Same input, works with equipped weapon
         ["HairGrab"] = Enum.KeyCode.F,
         ["Stomp"] = Enum.KeyCode.E,
         ["Carry"] = Enum.KeyCode.G,
         ["Punch"] = Enum.KeyCode.R,
         ["Kick"] = Enum.KeyCode.T
-    }
+    },
+
+    -- FARM MACRO
+    FarmMacroEnabled = false,
+    FarmRange = 250,
+    ActionDelay = 0.7,
+    CollectDelay = 0.3,
+    Targets = {"atm", "cash", "money", "register", "safe"},
+
+    -- WEAPON MACRO
+    SnowballMacroEnabled = false,
+    FireRate = 0.25,
+    OnlyEquipped = true
 }
 
--- 📊 MACRO STATE
+-- MACRO STATE
 local MacroState = {
     Running = true,
     Busy = false
 }
 
--- ✨ LOADING SCREEN
-local Loader = Instance.new("ScreenGui")
-Loader.Name = "MacroLoader"
-Loader.ResetOnSpawn = false
-Loader.Parent = player.PlayerGui
-Loader.IgnoreGuiInset = true
-Loader.ZIndexBehavior = Enum.ZIndexBehavior.Global
+-- ==============================
+-- 🔧 MACRO FUNCTIONS
+-- ==============================
 
-local MainBG = Instance.new("Frame")
-MainBG.Size = UDim2.new(1,0,1,0)
-MainBG.BackgroundColor3 = Theme.BG
-MainBG.BorderSizePixel = 0
-MainBG.Parent = Loader
-
-local Center = Instance.new("Frame")
-Center.Size = UDim2.new(0,700,0,450)
-Center.Position = UDim2.new(0.5,-350,0.5,-225)
-Center.BackgroundTransparency = true
-Center.Parent = MainBG
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,0,0,100)
-Title.Position = UDim2.new(0,0,0,20)
-Title.BackgroundTransparency = true
-Title.Text = "BADDIES MACRO"
-Title.TextColor3 = Theme.Text
-Title.TextScaled = true
-Title.Font = Enum.Font.GothamBlack
-Title.Parent = Center
-
-local SubTitle = Instance.new("TextLabel")
-SubTitle.Size = UDim2.new(1,0,0,40)
-SubTitle.Position = UDim2.new(0,0,0.22,0)
-SubTitle.BackgroundTransparency = true
-SubTitle.Text = "v3.0 • READY TO USE"
-SubTitle.TextColor3 = Theme.Primary
-SubTitle.TextScaled = true
-SubTitle.Font = Enum.Font.Gotham
-SubTitle.Parent = Center
-
-local BarOutline = Instance.new("Frame")
-BarOutline.Size = UDim2.new(0,600,0,28)
-BarOutline.Position = UDim2.new(0.5,-300,0.55,0)
-BarOutline.BackgroundColor3 = Theme.Panel
-BarOutline.BorderSizePixel = 0
-BarOutline.Parent = Center
-
-local BarCorner = Instance.new("UICorner")
-BarCorner.CornerRadius = UDim.new(1,0)
-BarCorner.Parent = BarOutline
-
-local ProgressBar = Instance.new("Frame")
-ProgressBar.Size = UDim2.new(0,0,1,0)
-ProgressBar.BackgroundColor3 = Theme.Primary
-ProgressBar.BorderSizePixel = 0
-ProgressBar.Parent = BarOutline
-
-local BarFill = Instance.new("UICorner")
-BarFill.CornerRadius = UDim.new(1,0)
-BarFill.Parent = ProgressBar
-
-local PercentText = Instance.new("TextLabel")
-PercentText.Size = UDim2.new(0,150,0,40)
-PercentText.Position = UDim2.new(0.5,-75,0.65,0)
-PercentText.BackgroundTransparency = true
-PercentText.Text = "0%"
-PercentText.TextColor3 = Theme.Text
-PercentText.TextScaled = true
-PercentText.Font = Enum.Font.GothamBold
-PercentText.Parent = Center
-
-local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1,0,0,30)
-StatusText.Position = UDim2.new(0,0,0.78,0)
-StatusText.BackgroundTransparency = true
-StatusText.Text = "Loading..."
-StatusText.TextColor3 = Color3.fromRGB(180,180,180)
-StatusText.TextScaled = true
-StatusText.Font = Enum.Font.Gotham
-StatusText.Parent = Center
-
--- ⚡ LOADING ANIMATION
-local LoadTime = 5
-local Elapsed = 0
-local Conn
-
-Conn = RunService.RenderStepped:Connect(function(delta)
-    Elapsed += delta
-    local Prog = math.min(Elapsed / LoadTime, 1)
-    ProgressBar.Size = UDim2.new(Prog,0,1,0)
-    PercentText.Text = math.floor(Prog*100).."%"
-    
-    if Prog >= 1 then
-        Conn:Disconnect()
-        local Fade = TweenInfo.new(1, Enum.EasingStyle.Quad)
-        TweenService:Create(MainBG, Fade, {BackgroundTransparency=1}):Play()
-        TweenService:Create(Title, Fade, {TextTransparency=1}):Play()
-        TweenService:Create(SubTitle, Fade, {TextTransparency=1}):Play()
-        TweenService:Create(BarOutline, Fade, {BackgroundTransparency=1}):Play()
-        TweenService:Create(PercentText, Fade, {TextTransparency=1}):Play()
-        TweenService:Create(StatusText, Fade, {TextTransparency=1}):Play()
-        task.wait(1.2)
-        Loader:Destroy()
-        LoadMainGUI()
-    end
-end)
-
--- 🛠️ CORE FUNCTIONS
+-- INPUT FUNCTION (WORKS ON MOBILE & PC + WEAPON COMPATIBLE)
 local function ExecuteInput(Type, Input)
     pcall(function()
         if Type == "Click" then
-            local Mouse = player:GetMouse()
+            local Mouse = LocalPlayer:GetMouse()
+            -- Works for normal attacks AND weapon attacks
             Mouse:Button1Down()
             task.wait(0.05)
             Mouse:Button1Up()
         else
-            UserInputService:InputBegan({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, true)
+            UIS:InputBegan({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, true)
             task.wait(0.05)
-            UserInputService:InputEnded({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, true)
+            UIS:InputEnded({KeyCode = Input, UserInputType = Enum.UserInputType.Keyboard}, true)
         end
     end)
 end
 
--- 🎯 TARGET SYSTEM
+-- 🎯 TARGET SYSTEM FUNCTIONS
 local function GetAllPlayers()
     local PlayersList = {}
-    for _, TargetPlayer in pairs(Players:GetPlayers()) do
-        if MacroConfig.IgnoreLocalPlayer and TargetPlayer == player then continue end
-        if TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("Humanoid") and TargetPlayer.Character.Humanoid.Health > 0 then
-            table.insert(PlayersList, TargetPlayer)
+    for _, Player in pairs(Players:GetPlayers()) do
+        if MacroConfig.IgnoreLocalPlayer and Player == LocalPlayer then continue end
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0 then
+            table.insert(PlayersList, Player)
         end
     end
     return PlayersList
@@ -212,13 +165,13 @@ local function GetClosestPlayer()
     local ClosestPlayer = nil
     local ShortestDistance = MacroConfig.TargetRange
 
-    for _, TargetPlayer in pairs(AllPlayers) do
-        local HRP = TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    for _, Player in pairs(AllPlayers) do
+        local HRP = Player.Character:FindFirstChild("HumanoidRootPart")
         if HRP then
             local Distance = (RootPart.Position - HRP.Position).Magnitude
             if Distance < ShortestDistance then
                 ShortestDistance = Distance
-                ClosestPlayer = TargetPlayer
+                ClosestPlayer = Player
             end
         end
     end
@@ -240,14 +193,17 @@ local function GetCurrentTarget()
     return {}
 end
 
--- 📦 HITBOX SYSTEM (WORKS ON ALL PLAYERS)
+-- 📦 HITBOX MACRO (NOW WORKS ON ALL PLAYERS + NEW JOINERS)
 local function SaveDefaultSizes()
+    -- Clear old data first to update new players
     table.clear(MacroConfig.OriginalSizes)
+    
+    -- Get all current players
     local Targets = GetCurrentTarget()
     for _, TargetPlayer in pairs(Targets) do
-        local TargetChar = TargetPlayer.Character
-        if TargetChar then
-            local HRP = TargetChar:FindFirstChild("HumanoidRootPart")
+        local Character = TargetPlayer.Character
+        if Character then
+            local HRP = Character:FindFirstChild("HumanoidRootPart")
             if HRP and not MacroConfig.OriginalSizes[HRP] then
                 MacroConfig.OriginalSizes[HRP] = HRP.Size
             end
@@ -283,10 +239,11 @@ local function ResetHitboxChanges()
     table.clear(MacroConfig.OriginalSizes)
 end
 
--- ⚔️ COMBAT MACRO
+-- GET SELECTED MACRO MOVES (NOW INCLUDES WEAPON MOVES)
 local function GetSelectedMoves()
     local Selected = {}
     for MoveName, Active in pairs(MacroConfig.MacroMoves) do
+        -- Only add weapon moves if enabled
         if MoveName == "Weapon Attack" and not MacroConfig.UseWeaponsInCombo then
             continue
         end
@@ -297,15 +254,57 @@ local function GetSelectedMoves()
     return Selected
 end
 
--- 🧍 HANDLE RESPAWN
-player.CharacterAdded:Connect(function(NewChar)
+-- FIND NEAREST TARGET FOR FARM MACRO
+local function GetNearestTarget()
+    local ClosestTarget = nil
+    local MinDistance = MacroConfig.FarmRange
+
+    for _, Object in pairs(Workspace:GetDescendants()) do
+        local IsTarget = false
+        local ObjName = Object.Name:lower()
+
+        for _, Tag in pairs(MacroConfig.Targets) do
+            if string.find(ObjName, Tag) then
+                IsTarget = true
+                break
+            end
+        end
+
+        if IsTarget then
+            local MainPart = Object:IsA("Model") and Object.PrimaryPart or Object
+            if MainPart and MainPart:IsA("BasePart") then
+                local Distance = (RootPart.Position - MainPart.Position).Magnitude
+                if Distance < MinDistance then
+                    MinDistance = Distance
+                    ClosestTarget = MainPart
+                end
+            end
+        end
+    end
+
+    return ClosestTarget
+end
+
+-- CHECK IF WEAPON IS EQUIPPED
+local function CheckWeaponEquipped()
+    if not MacroConfig.OnlyEquipped then return true end
+    local Tool = Character:FindFirstChildOfClass("Tool")
+    return Tool ~= nil -- Now works for ANY weapon/tool you have
+end
+
+-- HANDLE RESPAWN
+LocalPlayer.CharacterAdded:Connect(function(NewChar)
     Character = NewChar
     Humanoid = NewChar:WaitForChild("Humanoid")
     RootPart = NewChar:WaitForChild("HumanoidRootPart")
     ResetHitboxChanges()
 end)
 
+-- ==============================
 -- ⚙️ MACRO LOOPS
+-- ==============================
+
+-- COMBAT MACRO LOOP (WEAPON COMPATIBLE)
 task.spawn(function()
     while MacroState.Running do
         if MacroConfig.CombatMacroEnabled and Character and Humanoid.Health > 0 and not MacroState.Busy then
@@ -324,6 +323,7 @@ task.spawn(function()
     end
 end)
 
+-- HITBOX MACRO LOOP (UPDATES EVERY 0.3s TO CATCH NEW PLAYERS)
 task.spawn(function()
     while MacroState.Running do
         if MacroConfig.HitboxEnabled and Character and Humanoid.Health > 0 then
@@ -335,28 +335,151 @@ task.spawn(function()
     end
 end)
 
--- 🖥️ MAIN GUI
-function LoadMainGUI()
-    local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-    local Window = Rayfield:CreateWindow({
-        Name = "⚡ BADDIES MACRO",
-        LoadingTitle = "SYSTEM READY",
-        LoadingSubtitle = "by Legitness",
-        ConfigurationSaving = {Enabled = false},
-        Discord = {Enabled = false},
-        KeySystem = false
-    })
+-- FARM MACRO LOOP
+task.spawn(function()
+    while MacroState.Running do
+        if MacroConfig.FarmMacroEnabled and Character and Humanoid.Health > 0 then
+            MacroState.Busy = true
+            local Target = GetNearestTarget()
 
-    local MacroTab = Window:CreateTab("⚔️ Macro", 4483362458)
-    local HitboxTab = Window:CreateTab("📦 Hitbox", 4483362458)
-    local TargetTab = Window:CreateTab("🎯 Target", 4483362458)
-    local SettingsTab = Window:CreateTab("⚙️ Settings", 4483362458)
-    local CreditsTab = Window:CreateTab("📜 Credits", 4483362458)
+            if Target then
+                -- Move to target
+                Humanoid:MoveTo(Target.Position)
+                Humanoid.MoveToFinished:Wait()
+                task.wait(0.2)
 
-    -- ⚔️ MACRO TAB
-    MacroTab:CreateSection("COMBAT MACRO")
+                -- Perform action
+                ExecuteInput("Click")
+                ExecuteInput("Key", Enum.KeyCode.E)
+                task.wait(MacroConfig.ActionDelay)
 
-    MacroTab:CreateToggle({
-        Name = "Enable Combat Macro",
-        CurrentValue = false,
-        Callback = function(Value)
+                -- Collect reward
+                ExecuteInput("Click")
+                task.wait(MacroConfig.CollectDelay)
+
+                task.wait(0.5)
+            else
+                task.wait(1)
+            end
+
+            MacroState.Busy = false
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- WEAPON MACRO LOOP
+task.spawn(function()
+    while MacroState.Running do
+        if MacroConfig.SnowballMacroEnabled and Character and Humanoid.Health > 0 and CheckWeaponEquipped() and not MacroState.Busy then
+            ExecuteInput("Click")
+            task.wait(MacroConfig.FireRate)
+        else
+            task.wait(0.2)
+        end
+    end
+end)
+
+-- ==============================
+-- 🖥️ RAYFIELD MACRO UI
+-- ==============================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Baddies Void Macro",
+    LoadingTitle = "Macro System",
+    LoadingSubtitle = "by Legitness",
+    ConfigurationSaving = {
+        Enabled = false
+    },
+    Discord = {
+        Enabled = false
+    },
+    KeySystem = false
+})
+
+-- TABS
+local MacroTab = Window:CreateTab("Macro", 4483362458)
+local FeaturesTab = Window:CreateTab("Features", 4483362458)
+local TargetTab = Window:CreateTab("Target", 4483362458) -- NEW TARGET TAB
+local SettingsTab = Window:CreateTab("Settings", 4483362458)
+local CreditsTab = Window:CreateTab("Credits", 4483362458)
+
+-- ==============================
+-- TARGET TAB (NEW)
+-- ==============================
+TargetTab:CreateSection("🎯 Target Settings")
+
+TargetTab:CreateDropdown({
+    Name = "Target Mode",
+    Options = {"All Players", "Closest Player", "Selected Player"},
+    CurrentOption = "All Players",
+    Callback = function(Option)
+        MacroConfig.TargetMode = Option
+        Rayfield:Notify({
+            Title = "Target Mode Changed",
+            Content = "Now targeting: "..Option,
+            Duration = 2
+        })
+    end
+})
+
+TargetTab:CreateDropdown({
+    Name = "Select Player",
+    Options = function()
+        local Names = {}
+        for _, Player in pairs(Players:GetPlayers()) do
+            if Player ~= LocalPlayer then
+                table.insert(Names, Player.Name)
+            end
+        end
+        return Names
+    end,
+    CurrentOption = nil,
+    Callback = function(PlayerName)
+        for _, Player in pairs(Players:GetPlayers()) do
+            if Player.Name == PlayerName then
+                MacroConfig.SelectedPlayer = Player
+                Rayfield:Notify({
+                    Title = "Player Selected",
+                    Content = "Now targeting: "..PlayerName,
+                    Duration = 2
+                })
+                break
+            end
+        end
+    end
+})
+
+TargetTab:CreateSlider({
+    Name = "Target Range",
+    Range = {50, 500},
+    Increment = 10,
+    CurrentValue = 200,
+    Callback = function(Value)
+        MacroConfig.TargetRange = Value
+    end
+})
+
+TargetTab:CreateToggle({
+    Name = "Ignore Yourself",
+    CurrentValue = true,
+    Callback = function(Value)
+        MacroConfig.IgnoreLocalPlayer = Value
+    end
+})
+
+-- ==============================
+-- MACRO TAB
+-- ==============================
+MacroTab:CreateSection("⚔️ Combat Macro")
+
+MacroTab:CreateToggle({
+    Name = "Enable Combat Macro",
+    CurrentValue = false,
+    Callback = function(Value)
+        MacroConfig.CombatMacroEnabled = Value
+        Rayfield:Notify({
+            Title = "Combat Macro",
+            Content = Value and "Activated" or "De
